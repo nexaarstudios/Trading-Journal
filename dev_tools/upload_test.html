@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screenshot upload test</title>
+  <style>
+    body { font: 15px system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a2330; }
+    fieldset { margin: 1rem 0; border: 1px solid #c9d1da; border-radius: 6px; }
+    label { display: block; margin: .6rem 0 .2rem; font-weight: 600; }
+    input, select, button { font: inherit; padding: .4rem .6rem; }
+    input[type=text], input[type=email], input[type=password], select { width: 100%; box-sizing: border-box; }
+    button { margin: .75rem .5rem 0 0; cursor: pointer; }
+    pre { background: #f3f5f8; padding: .75rem; overflow: auto; border-radius: 6px; font-size: 13px; white-space: pre-wrap; }
+    img { max-width: 100%; border: 1px solid #c9d1da; border-radius: 6px; display: block; }
+    #gallery p { margin: 1rem 0 .3rem; }
+  </style>
+</head>
+<body>
+  <h1>Screenshot upload test</h1>
+  <p>A throwaway page for trying the screenshot API from a real browser. Images are shrunk here, in the browser, before they are sent.</p>
+
+  <fieldset>
+    <legend>1. Sign in</legend>
+    <label for="base">API address</label>
+    <input id="base" type="text" value="http://127.0.0.1:8000">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username">
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <button id="login">Sign in</button>
+    <p id="limits"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>2. Upload</legend>
+    <label for="trade">Trade</label>
+    <select id="trade"></select>
+    <label for="file">Image (PNG, JPEG, GIF or WebP)</label>
+    <input id="file" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
+    <label for="caption">Caption</label>
+    <input id="caption" type="text" maxlength="200">
+    <button id="upload">Shrink and upload</button>
+    <button id="list">Show this trade's screenshots</button>
+  </fieldset>
+
+  <div id="gallery"></div>
+  <h2>Log</h2>
+  <pre id="log"></pre>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let token = null;
+    let limits = null;
+
+    const api = (path) => $("base").value.replace(/\/$/, "") + path;
+    const kb = (bytes) => (bytes / 1024).toFixed(0) + " KB";
+
+    function log(label, data) {
+      const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      $("log").textContent = label + "\n" + text + "\n\n" + $("log").textContent;
+    }
+
+    async function call(path, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (token) headers.Authorization = "Bearer " + token;
+      const res = await fetch(api(path), { ...options, headers });
+      const text = await res.text();
+      let body;
+      try { body = JSON.parse(text); } catch { body = text; }
+      if (!res.ok) {
+        const detail = typeof body === "string" ? body.slice(0, 200) : JSON.stringify(body);
+        throw new Error(res.status + " " + detail);
+      }
+      return body;
+    }
+
+    // Shrinks an image in the browser before it is uploaded. This is the part to copy into the real app.
+    async function shrink(file, maxWidth, maxBytes) {
+      if (file.type === "image/gif" && file.size <= maxBytes) return file;  // keep animated GIFs as they are
+      const bitmap = await createImageBitmap(file);                         // applies phone-photo rotation
+      const scale = Math.min(1, maxWidth / bitmap.width);
+      if (scale === 1 && file.size <= maxBytes) return file;                // already small enough
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";                                        // flatten transparency onto white
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const type = canvas.toDataURL("image/webp").startsWith("data:image/webp") ? "image/webp" : "image/jpeg";
+      const name = file.name.replace(/\.[^.]+$/, "") + (type === "image/webp" ? ".webp" : ".jpg");
+      for (const quality of [0.92, 0.85, 0.75, 0.65, 0.5]) {
+        const blob = await new Promise((done) => canvas.toBlob(done, type, quality));
+        if (blob && blob.size <= maxBytes) return new File([blob], name, { type });
+      }
+      throw new Error("Even at low quality this image is larger than " + kb(maxBytes) + ".");
+    }
+
+    function show(shot) {
+      const link = document.createElement("a");
+      link.href = shot.url;
+      link.target = "_blank";
+      const image = document.createElement("img");
+      image.src = shot.thumbnail_url;
+      image.alt = shot.caption;
+      link.append(image);
+      const note = document.createElement("p");
+      note.textContent = `#${shot.id} ${shot.caption || "(no caption)"}: ${shot.width}x${shot.height}, ` +
+        `${kb(shot.size)}. Links expire in ${shot.url_expires_in / 60} minutes.`;
+      $("gallery").append(note, link);
+    }
+
+    async function refreshLimits() {
+      limits = await call("/api/screenshots/usage/");
+      $("limits").textContent =
+        `Limits: ${kb(limits.max_file_bytes)} per image, ${limits.max_per_trade} per trade, ` +
+        `${(limits.used_bytes / 1048576).toFixed(1)} of ${(limits.limit_bytes / 1048576).toFixed(0)} MB used.`;
+    }
+
+    async function loadTrades() {
+      const accounts = await call("/api/accounts/");
+      if (!accounts.results.length) throw new Error("This user has no accounts yet.");
+      const trades = await call("/api/trades/?account=" + accounts.results[0].id);
+      if (!trades.results.length) throw new Error("This account has no trades yet.");
+      $("trade").replaceChildren(...trades.results.map((t) =>
+        new Option(`#${t.id} ${t.symbol} ${t.side}, closed ${t.closed_at.slice(0, 10)} (${t.screenshot_count} screenshots)`, t.id)));
+      await refreshLimits();
+    }
+
+    $("login").onclick = async () => {
+      try {
+        const out = await call("/api/auth/login/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: $("email").value, password: $("password").value }),
+        });
+        token = out.access;
+        await loadTrades();
+        log("Signed in", "OK");
+      } catch (error) {
+        log("Sign in failed", error.message);
+      }
+    };
+
+    $("upload").onclick = async () => {
+      const file = $("file").files[0];
+      if (!token || !limits) return log("Upload", "Sign in first.");
+      if (!file) return log("Upload", "Choose an image first.");
+      try {
+        const ready = await shrink(file, 1920, limits.max_file_bytes);
+        log("Shrunk", `${file.name}: ${kb(file.size)} -> ${ready.name}: ${kb(ready.size)} (${ready.type})`);
+        const form = new FormData();
+        form.append("file", ready);
+        form.append("caption", $("caption").value);
+        const shot = await call(`/api/trades/${$("trade").value}/screenshots/`, { method: "POST", body: form });
+        log("Uploaded", shot);
+        show(shot);
+        await refreshLimits();
+      } catch (error) {
+        log("Upload failed", error.message);
+      }
+    };
+
+    $("list").onclick = async () => {
+      try {
+        const shots = await call(`/api/trades/${$("trade").value}/screenshots/`);
+        $("gallery").replaceChildren();
+        shots.forEach(show);
+        log("Screenshots on this trade", shots.length + " found");
+      } catch (error) {
+        log("Could not list", error.message);
+      }
+    };
+  </script>
+</body>
+</html>

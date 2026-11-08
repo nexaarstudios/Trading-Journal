@@ -1,0 +1,61 @@
+databases:
+  - name: tradingjournal-db
+    plan: free            # free databases expire after 30 days: use a paid plan before real users sign up
+    databaseName: tradingjournal
+    user: tradingjournal
+
+services:
+  - type: keyvalue        # the shared cache for login lockouts and rate limits
+    name: tradingjournal-cache
+    plan: free
+    ipAllowList: []       # reachable only from your own services on Render
+
+  - type: web
+    name: tradingjournal-api
+    runtime: python
+    plan: free            # free services sleep after a while without traffic: a paid plan stays awake
+    buildCommand: bash build.sh
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 60 --error-logfile -
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION   # what `python --version` shows on your computer, e.g. 3.13.5
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TWO_FACTOR_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY  # how many worker processes
+        value: "2"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tradingjournal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: tradingjournal-cache
+          property: connectionString
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_IDS
+        sync: false
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false

@@ -1,0 +1,22 @@
+﻿# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Secrets and local settings
+.env
+dev.ps1
+dev_tools/*.ps1
+*.bak
+
+# Users' private uploads on your laptop
+private_media/
+
+# Generated files
+staticfiles/
+/*.csv
+*.dump
+*.sql
+/*.png
+/*.jpg
+body.json

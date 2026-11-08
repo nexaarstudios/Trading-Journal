@@ -1,0 +1,1058 @@
+{
+  "count": 117,
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/accounts/",
+      "view": "TradingAccountViewSet",
+      "name": "account-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounts/",
+      "view": "TradingAccountViewSet",
+      "name": "account-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/accounts/{pk}/",
+      "view": "TradingAccountViewSet",
+      "name": "account-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounts/{pk}/",
+      "view": "TradingAccountViewSet",
+      "name": "account-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/accounts/{pk}/",
+      "view": "TradingAccountViewSet",
+      "name": "account-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/accounts/{pk}/",
+      "view": "TradingAccountViewSet",
+      "name": "account-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/adherence/streak/",
+      "view": "AdherenceStreakView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Trades and days in a row where every playbook rule was followed. A live count, so date filters are ignored."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/2fa/",
+      "view": "TwoFactorStatusView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Whether two-factor sign-in is on, and how many backup codes are left."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/backup-codes/",
+      "view": "TwoFactorBackupCodesView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Replace the backup codes with 10 new ones. Needs the password and a current code. The old ones stop working."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/disable/",
+      "view": "TwoFactorDisableView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Turn two-factor off. Needs the password and a current code (or a backup code). Forgets remembered devices."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/enable/",
+      "view": "TwoFactorEnableView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Step 2: prove the app works by sending a current code. Returns 10 backup codes, shown only this once."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/setup/",
+      "view": "TwoFactorSetupView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Step 1 of turning two-factor on: returns the secret and the otpauth:// link to show as a QR code."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/auth/devices/",
+      "view": "DeviceListView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Devices that skip the two-factor code. GET lists them, DELETE forgets all of them."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/devices/",
+      "view": "DeviceListView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Devices that skip the two-factor code. GET lists them, DELETE forgets all of them."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/auth/devices/{pk}/",
+      "view": "DeviceDetailView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Forget one remembered device."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/email/change/",
+      "view": "EmailChangeRequestView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "email",
+      "summary": "Start changing the account email. A link goes to the new address, and nothing changes until it is opened."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/email/change/confirm/",
+      "view": "EmailChangeConfirmView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Finish the change with the token from the link sent to the new address."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login/",
+      "view": "LoginView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Sign in with email and password. 403 until the email is verified. Two-factor users get a challenge for /login/2fa/ unless a remembered device_token is sent."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login/2fa/",
+      "view": "TwoFactorLoginView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Second step of signing in: the challenge from the first step plus a code. Send remember_device to skip the code on this device for a while."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me/",
+      "view": "MeView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "The signed-in user's profile: timezone, theme, and whether email, password and two-factor are set up."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/auth/me/",
+      "view": "MeView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "The signed-in user's profile: timezone, theme, and whether email, password and two-factor are set up."
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me/",
+      "view": "MeView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "The signed-in user's profile: timezone, theme, and whether email, password and two-factor are set up."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password-reset/",
+      "view": "PasswordResetRequestView",
+      "name": null,
+      "auth": "public",
+      "throttle": "email",
+      "summary": "Email a one-hour reset link. The answer is the same whether or not the address has an account."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password-reset/confirm/",
+      "view": "PasswordResetConfirmView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Set a new password using the uid and token from the emailed link. The link works once, verifies the email, and forgets remembered devices."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password/change/",
+      "view": "PasswordChangeView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Change the password while signed in. Needs the current one. Returns fresh tokens, because the old ones stop working."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/refresh/",
+      "view": "RefreshView",
+      "name": null,
+      "auth": "public",
+      "throttle": null,
+      "summary": "Trade a refresh token for a new access token. Tokens issued before the last password change are refused."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register/",
+      "view": "RegisterView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Create an account and email a verification link. No tokens: the user signs in after verifying."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/social/",
+      "view": "SocialStatusView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Which providers are connected, whether the account has a password, and which providers the server is set up for."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/social/{provider}/",
+      "view": "SocialSignInView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Sign in or sign up with a Google or Apple ID token obtained by the frontend. Send the same nonce you gave the provider."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/social/{provider}/link/",
+      "view": "SocialLinkView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Connect Google or Apple to the signed-in account. Needs the password (and a code if two-factor is on)."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/social/{provider}/unlink/",
+      "view": "SocialUnlinkView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": "Disconnect Google or Apple. Needs the password (and a code if two-factor is on), so a password is always left to sign in with."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-email/confirm/",
+      "view": "EmailVerifyConfirmView",
+      "name": null,
+      "auth": "public",
+      "throttle": "auth",
+      "summary": "Confirm an email address with the token from the emailed link."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-email/resend/",
+      "view": "EmailVerifyResendView",
+      "name": null,
+      "auth": "public",
+      "throttle": "email",
+      "summary": "Send a new verification link. Open to anyone, since an unverified user can't sign in, and it reveals nothing about which addresses exist."
+    },
+    {
+      "method": "POST",
+      "path": "/api/data/delete/",
+      "view": "DeleteDataView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "auth",
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/export/journal/",
+      "view": "ExportJournalView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Download journal entries as CSV, one row per prompt and answer."
+    },
+    {
+      "method": "GET",
+      "path": "/api/export/trades/",
+      "view": "ExportTradesView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Download trades as CSV. Takes the same filters as the trade log."
+    },
+    {
+      "method": "GET",
+      "path": "/api/files/screenshot/",
+      "view": "ScreenshotFileView",
+      "name": "screenshot-file",
+      "auth": "public",
+      "throttle": null,
+      "summary": "Serve one screenshot or thumbnail from a signed, expiring link. The link is the credential, so no login header is needed."
+    },
+    {
+      "method": "GET",
+      "path": "/api/fx/rate/",
+      "view": "FxRateView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": "fx",
+      "summary": "The rate for converting 1 `from` into `to` on a day, e.g. ?from=JPY&to=USD&date=2026-10-15."
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/",
+      "view": "GoalViewSet",
+      "name": "goal-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/goals/",
+      "view": "GoalViewSet",
+      "name": "goal-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/progress/",
+      "view": "GoalProgressView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "How each goal that covers a month is going. Defaults to the current month."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/goals/{pk}/",
+      "view": "GoalViewSet",
+      "name": "goal-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/{pk}/",
+      "view": "GoalViewSet",
+      "name": "goal-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/goals/{pk}/",
+      "view": "GoalViewSet",
+      "name": "goal-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/goals/{pk}/",
+      "view": "GoalViewSet",
+      "name": "goal-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/",
+      "view": "HealthView",
+      "name": null,
+      "auth": "public",
+      "throttle": null,
+      "summary": "Is the service up? Checks the database and the cache. Public, and used by the host's health check."
+    },
+    {
+      "method": "GET",
+      "path": "/api/import-templates/",
+      "view": "ImportTemplateViewSet",
+      "name": "import-template-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/import-templates/",
+      "view": "ImportTemplateViewSet",
+      "name": "import-template-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/import-templates/{pk}/",
+      "view": "ImportTemplateViewSet",
+      "name": "import-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/import-templates/{pk}/",
+      "view": "ImportTemplateViewSet",
+      "name": "import-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/import-templates/{pk}/",
+      "view": "ImportTemplateViewSet",
+      "name": "import-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/import-templates/{pk}/",
+      "view": "ImportTemplateViewSet",
+      "name": "import-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/imports/",
+      "view": "ImportBatchViewSet",
+      "name": "import-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/imports/",
+      "view": "ImportBatchViewSet",
+      "name": "import-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Import the file or pasted text for real, in one transaction."
+    },
+    {
+      "method": "POST",
+      "path": "/api/imports/preview/",
+      "view": "ImportBatchViewSet",
+      "name": "import-preview",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Parse the file or pasted text and report what would happen. Saves nothing."
+    },
+    {
+      "method": "GET",
+      "path": "/api/imports/{pk}/",
+      "view": "ImportBatchViewSet",
+      "name": "import-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/imports/{pk}/undo/",
+      "view": "ImportBatchViewSet",
+      "name": "import-undo",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Remove every trade that came from this import."
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/entries/",
+      "view": "JournalEntryViewSet",
+      "name": "journal-entry-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/journal/entries/",
+      "view": "JournalEntryViewSet",
+      "name": "journal-entry-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Create the entry for this kind and day, or update it if it already exists."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/journal/entries/{pk}/",
+      "view": "JournalEntryViewSet",
+      "name": "journal-entry-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/entries/{pk}/",
+      "view": "JournalEntryViewSet",
+      "name": "journal-entry-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/journal/entries/{pk}/",
+      "view": "JournalEntryViewSet",
+      "name": "journal-entry-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/journal/entries/{pk}/",
+      "view": "JournalEntryViewSet",
+      "name": "journal-entry-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/streak/",
+      "view": "JournalStreakView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Days journaled in a row. Weekly reviews don't count toward it."
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/templates/",
+      "view": "JournalTemplateViewSet",
+      "name": "journal-template-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/journal/templates/",
+      "view": "JournalTemplateViewSet",
+      "name": "journal-template-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/journal/templates/{pk}/",
+      "view": "JournalTemplateViewSet",
+      "name": "journal-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/templates/{pk}/",
+      "view": "JournalTemplateViewSet",
+      "name": "journal-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/journal/templates/{pk}/",
+      "view": "JournalTemplateViewSet",
+      "name": "journal-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/journal/templates/{pk}/",
+      "view": "JournalTemplateViewSet",
+      "name": "journal-template-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbook-rules/",
+      "view": "PlaybookRuleViewSet",
+      "name": "playbook-rule-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/playbook-rules/",
+      "view": "PlaybookRuleViewSet",
+      "name": "playbook-rule-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playbook-rules/{pk}/",
+      "view": "PlaybookRuleViewSet",
+      "name": "playbook-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbook-rules/{pk}/",
+      "view": "PlaybookRuleViewSet",
+      "name": "playbook-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/playbook-rules/{pk}/",
+      "view": "PlaybookRuleViewSet",
+      "name": "playbook-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/playbook-rules/{pk}/",
+      "view": "PlaybookRuleViewSet",
+      "name": "playbook-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbooks/",
+      "view": "PlaybookViewSet",
+      "name": "playbook-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/playbooks/",
+      "view": "PlaybookViewSet",
+      "name": "playbook-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playbooks/{pk}/",
+      "view": "PlaybookViewSet",
+      "name": "playbook-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbooks/{pk}/",
+      "view": "PlaybookViewSet",
+      "name": "playbook-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/playbooks/{pk}/",
+      "view": "PlaybookViewSet",
+      "name": "playbook-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/playbooks/{pk}/",
+      "view": "PlaybookViewSet",
+      "name": "playbook-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/",
+      "view": "ReportCatalogView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "All 15 core reports: where to fetch each one, its columns, and the filters it accepts."
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/calendar/",
+      "view": "CalendarView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/equity/",
+      "view": "EquityView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/playbooks/",
+      "view": "PlaybookReportView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Adherence, followed-vs-broken P&L per playbook, and what each rule costs when broken."
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/summary/",
+      "view": "SummaryView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/tags/",
+      "view": "TagReportView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Rank tags by the money lost on trades that carry them (default: mistake tags)."
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/{slug}/",
+      "view": "AnalyticsReportView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "The nine reports built in this module. The older six keep their own endpoints."
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/{slug}/csv/",
+      "view": "ReportCsvView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Any of the 15 reports as a CSV download, with the same query parameters."
+    },
+    {
+      "method": "GET",
+      "path": "/api/risk-rules/",
+      "view": "RiskRuleViewSet",
+      "name": "risk-rule-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/risk-rules/",
+      "view": "RiskRuleViewSet",
+      "name": "risk-rule-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/risk-rules/{pk}/",
+      "view": "RiskRuleViewSet",
+      "name": "risk-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/risk-rules/{pk}/",
+      "view": "RiskRuleViewSet",
+      "name": "risk-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/risk-rules/{pk}/",
+      "view": "RiskRuleViewSet",
+      "name": "risk-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/risk-rules/{pk}/",
+      "view": "RiskRuleViewSet",
+      "name": "risk-rule-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/risk/status/",
+      "view": "RiskStatusView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Where the account stands against its limits, for today or for ?date=YYYY-MM-DD."
+    },
+    {
+      "method": "GET",
+      "path": "/api/screenshots/usage/",
+      "view": "ScreenshotUsageView",
+      "name": null,
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "How much of the user's screenshot storage is used, and the upload limits."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/screenshots/{pk}/",
+      "view": "ScreenshotViewSet",
+      "name": "screenshot-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Edit a screenshot's caption and order, or delete it."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/screenshots/{pk}/",
+      "view": "ScreenshotViewSet",
+      "name": "screenshot-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Edit a screenshot's caption and order, or delete it."
+    },
+    {
+      "method": "GET",
+      "path": "/api/specs/",
+      "view": "InstrumentSpecViewSet",
+      "name": "spec-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Global defaults plus the user's own per-account overrides."
+    },
+    {
+      "method": "GET",
+      "path": "/api/specs/{pk}/",
+      "view": "InstrumentSpecViewSet",
+      "name": "spec-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Global defaults plus the user's own per-account overrides."
+    },
+    {
+      "method": "GET",
+      "path": "/api/tags/",
+      "view": "TagViewSet",
+      "name": "tag-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/tags/",
+      "view": "TagViewSet",
+      "name": "tag-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tags/{pk}/",
+      "view": "TagViewSet",
+      "name": "tag-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/tags/{pk}/",
+      "view": "TagViewSet",
+      "name": "tag-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tags/{pk}/",
+      "view": "TagViewSet",
+      "name": "tag-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tags/{pk}/",
+      "view": "TagViewSet",
+      "name": "tag-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/trades/",
+      "view": "TradeViewSet",
+      "name": "trade-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/trades/",
+      "view": "TradeViewSet",
+      "name": "trade-list",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/trades/bulk/",
+      "view": "TradeViewSet",
+      "name": "trade-bulk",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "Add or remove tags on many trades at once, or delete them."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/trades/{pk}/",
+      "view": "TradeViewSet",
+      "name": "trade-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/trades/{pk}/",
+      "view": "TradeViewSet",
+      "name": "trade-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/trades/{pk}/",
+      "view": "TradeViewSet",
+      "name": "trade-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/trades/{pk}/",
+      "view": "TradeViewSet",
+      "name": "trade-detail",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/trades/{pk}/screenshots/",
+      "view": "TradeViewSet",
+      "name": "trade-screenshots",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "List a trade's screenshots with fresh signed links, or upload one (multipart: file, caption)."
+    },
+    {
+      "method": "POST",
+      "path": "/api/trades/{pk}/screenshots/",
+      "view": "TradeViewSet",
+      "name": "trade-screenshots",
+      "auth": "authenticated",
+      "throttle": null,
+      "summary": "List a trade's screenshots with fresh signed links, or upload one (multipart: file, caption)."
+    }
+  ]
+}

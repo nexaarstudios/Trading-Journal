@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Social sign-in test</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { font: 15px system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a2330; }
+    fieldset { margin: 1rem 0; border: 1px solid #c9d1da; border-radius: 6px; }
+    label { display: block; margin: .6rem 0 .2rem; font-weight: 600; }
+    input[type=text] { width: 100%; box-sizing: border-box; font: inherit; padding: .4rem .6rem; }
+    button { font: inherit; padding: .4rem .8rem; margin: .6rem .5rem 0 0; cursor: pointer; }
+    pre { background: #f3f5f8; padding: .75rem; overflow: auto; border-radius: 6px; font-size: 13px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Social sign-in test</h1>
+  <p>A throwaway page for trying Google sign-in against your API from a real browser.</p>
+
+  <fieldset>
+    <legend>1. Setup</legend>
+    <label for="base">API address</label>
+    <input id="base" type="text" value="http://127.0.0.1:8000">
+    <label for="clientId">Google client ID</label>
+    <input id="clientId" type="text" placeholder="123456-abc.apps.googleusercontent.com">
+    <button id="start">Show the Google button</button>
+    <div id="button" style="margin-top: .75rem"></div>
+  </fieldset>
+
+  <fieldset id="second" hidden>
+    <legend>2. Two-factor code</legend>
+    <label for="code">Code from your authenticator app, or a backup code</label>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code">
+    <label><input id="remember" type="checkbox"> Remember this device</label>
+    <button id="send">Send code</button>
+  </fieldset>
+
+  <p><button id="forget">Forget the remembered device token in this browser</button></p>
+  <h2>Log</h2>
+  <pre id="log"></pre>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const api = (path) => $("base").value.replace(/\/$/, "") + path;
+    let nonce = "";
+    let challenge = "";
+
+    function log(label, data) {
+      const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      $("log").textContent = label + "\n" + text + "\n\n" + $("log").textContent;
+    }
+
+    function randomNonce() {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function post(path, body) {
+      const res = await fetch(api(path), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = text; }
+      return { status: res.status, data };
+    }
+
+    $("start").onclick = () => {
+      const clientId = $("clientId").value.trim();
+      if (!clientId) return log("Setup", "Paste your Google client ID first.");
+      if (!window.google) return log("Setup", "Google's script has not loaded yet. Wait a second and try again.");
+      nonce = randomNonce();  // a new random value for every sign-in attempt
+      google.accounts.id.initialize({ client_id: clientId, nonce, callback: onCredential });
+      $("button").replaceChildren();
+      google.accounts.id.renderButton($("button"), { theme: "outline", size: "large" });
+      log("Ready", "Click the Google button.");
+    };
+
+    async function onCredential(response) {
+      const body = { id_token: response.credential, nonce };
+      const remembered = localStorage.getItem("device_token");
+      if (remembered) body.device_token = remembered;
+      const result = await post("/api/auth/social/google/", body);
+      log("Sign-in answer (" + result.status + ")", result.data);
+      if (result.data && result.data.two_factor_required) {
+        challenge = result.data.challenge;
+        $("second").hidden = false;
+      }
+    }
+
+    $("send").onclick = async () => {
+      const result = await post("/api/auth/login/2fa/", {
+        challenge,
+        code: $("code").value,
+        remember_device: $("remember").checked,
+        device_name: "Browser test page",
+      });
+      log("Second step (" + result.status + ")", result.data);
+      if (result.data && result.data.device_token) {
+        localStorage.setItem("device_token", result.data.device_token);
+        log("Saved", "The device token is stored in this browser. Sign in again to see the code skipped.");
+      }
+    };
+
+    $("forget").onclick = () => {
+      localStorage.removeItem("device_token");
+      log("Forgotten", "This browser no longer sends a device token.");
+    };
+  </script>
+</body>
+</html>
