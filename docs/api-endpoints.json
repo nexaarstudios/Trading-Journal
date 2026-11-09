@@ -1,0 +1,1978 @@
+{
+  "title": "Trading Journal API",
+  "version": "1.0",
+  "base_path": "/api/",
+  "endpoint_count": 117,
+  "verified": "Routes checked against export_endpoints output (117 unique). Request bodies and filter names checked against the serializer and filter code.",
+  "conventions": {
+    "auth": "JWT: Authorization: Bearer <access>. Access 15 min (8 h in DEBUG), refresh 7 days; refresh tokens die on password change.",
+    "money": "Decimal values are strings with 2 decimals.",
+    "times": "UTC ISO 8601; day boundaries use the user's timezone.",
+    "errors": "JSON; validation errors keyed by field (400). 401 bad/expired token, 403 email_not_verified, 404 other users' objects, 429 throttled.",
+    "request_id": "Every response carries X-Request-ID; quote it in bug reports.",
+    "throttle_scopes": [
+      "auth",
+      "email",
+      "fx"
+    ]
+  },
+  "schemas": {
+    "TradingAccount": {
+      "id": "int",
+      "name": "string",
+      "account_type": "string",
+      "starting_balance": "decimal string",
+      "currency": "string (ISO code)",
+      "created_at": "datetime"
+    },
+    "Trade": {
+      "id": "int",
+      "account": "account id",
+      "symbol": "string",
+      "side": "buy|sell",
+      "opened_at": "datetime",
+      "closed_at": "datetime|null",
+      "entry_price": "decimal",
+      "exit_price": "decimal|null",
+      "lots": "decimal",
+      "stop_loss": "decimal|null",
+      "take_profit": "decimal|null",
+      "commission": "decimal",
+      "swap": "decimal",
+      "fees": "decimal",
+      "quote_to_account_rate": "decimal|null",
+      "broker_profit": "decimal|null",
+      "gross_pnl": "read-only",
+      "net_pnl": "read-only",
+      "r_multiple": "read-only",
+      "risk_amount": "read-only",
+      "duration_seconds": "read-only",
+      "playbook": "playbook id|null",
+      "rating": "int|null",
+      "notes": "string (max 10000)",
+      "rules_total": "read-only",
+      "rules_checked": "read-only",
+      "rule_checks": "read-only [{rule,text,checked}]",
+      "checked_rule_ids": "write-only [int]",
+      "tags": "read-only [{id,name,kind}]",
+      "tag_ids": "write-only [int]",
+      "import_batch": "read-only",
+      "created_at": "read-only",
+      "updated_at": "read-only"
+    },
+    "Tag": {
+      "id": "int",
+      "name": "string",
+      "kind": "string (includes emotion kind)",
+      "trade_count": "read-only int"
+    },
+    "Playbook": {
+      "id": "int",
+      "name": "string",
+      "description": "string",
+      "archived": "bool",
+      "rules": "read-only [{id,text,position}]",
+      "trade_count": "read-only",
+      "created_at": "datetime"
+    },
+    "PlaybookRule": {
+      "id": "int",
+      "playbook": "playbook id (cannot change after create)",
+      "text": "string",
+      "position": "int",
+      "archived": "bool"
+    },
+    "RiskRule": {
+      "id": "int",
+      "account": "account id",
+      "kind": "daily_loss|max_drawdown|trades_per_day|...",
+      "unit": "money|percent|count",
+      "limit_value": "decimal > 0",
+      "enabled": "bool"
+    },
+    "JournalTemplate": {
+      "id": "int",
+      "kind": "pre_market|post_market|weekly",
+      "name": "string",
+      "prompts": "[string]",
+      "created_at": "datetime"
+    },
+    "JournalEntry": {
+      "id": "int",
+      "kind": "pre_market|post_market|weekly",
+      "date": "YYYY-MM-DD (weekly = Monday; not in future)",
+      "template": "template id|null",
+      "sections": "[{prompt,answer}]",
+      "has_content": "read-only",
+      "created_at": "read-only",
+      "updated_at": "read-only"
+    },
+    "Goal": {
+      "id": "int",
+      "kind": "string",
+      "account": "account id|null",
+      "target": "decimal",
+      "start_month": "YYYY-MM",
+      "end_month": "YYYY-MM",
+      "created_at": "datetime"
+    },
+    "ImportTemplate": {
+      "id": "int",
+      "name": "string",
+      "mapping": "object",
+      "timezone": "string",
+      "date_format": "string",
+      "costs_as_negative": "bool",
+      "created_at": "datetime"
+    },
+    "Screenshot": {
+      "id": "int",
+      "trade": "trade id",
+      "caption": "string",
+      "position": "int",
+      "content_type": "string",
+      "size": "bytes",
+      "created_at": "datetime",
+      "url": "signed link",
+      "url_expires_in": "seconds (900)"
+    },
+    "Me": {
+      "id": "int",
+      "email": "string",
+      "timezone": "IANA zone",
+      "theme": "string",
+      "email_verified": "bool",
+      "two_factor_enabled": "bool",
+      "has_password": "bool"
+    }
+  },
+  "flows": {
+    "sign_up": [
+      "POST /auth/register/",
+      "user clicks emailed link",
+      "POST /auth/verify-email/confirm/",
+      "POST /auth/login/"
+    ],
+    "sign_in_2fa": [
+      "POST /auth/login/ -> challenge",
+      "POST /auth/login/2fa/ {challenge,code,remember_device}"
+    ],
+    "two_factor_setup": [
+      "POST /auth/2fa/setup/",
+      "POST /auth/2fa/enable/ -> 10 backup codes (shown once)"
+    ],
+    "forgot_password": [
+      "POST /auth/password-reset/",
+      "POST /auth/password-reset/confirm/"
+    ],
+    "import": [
+      "POST /imports/preview/",
+      "POST /imports/",
+      "POST /imports/{pk}/undo/ if wrong"
+    ],
+    "screenshots": [
+      "POST /trades/{pk}/screenshots/",
+      "GET /trades/{pk}/screenshots/ for fresh signed links",
+      "GET /files/screenshot/?... (no header)"
+    ]
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/accounts/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List accounts",
+      "resource": "TradingAccount",
+      "errors": [
+        401
+      ],
+      "response": "list of TradingAccount"
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounts/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (TradingAccount)",
+      "resource": "TradingAccount",
+      "body": "fields of TradingAccount (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "TradingAccount"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/accounts/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (TradingAccount)",
+      "resource": "TradingAccount",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounts/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (TradingAccount)",
+      "resource": "TradingAccount",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "TradingAccount",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/accounts/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (TradingAccount)",
+      "resource": "TradingAccount",
+      "body": "fields of TradingAccount (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "TradingAccount",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/accounts/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (TradingAccount)",
+      "resource": "TradingAccount",
+      "body": "fields of TradingAccount (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "TradingAccount",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/adherence/streak/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Trades and days in a row where every playbook rule was followed. A live count, so date filters are ignored.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/2fa/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Whether two-factor sign-in is on, and how many backup codes are left.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/backup-codes/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Replace the backup codes with 10 new ones. Needs the password and a current code. The old ones stop working.",
+      "body": {
+        "password": "string",
+        "code": "current code"
+      },
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/disable/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Turn two-factor off. Needs the password and a current code (or a backup code). Forgets remembered devices.",
+      "body": {
+        "password": "string",
+        "code": "current or backup code"
+      },
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/enable/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Step 2: prove the app works by sending a current code. Returns 10 backup codes, shown only this once.",
+      "body": {
+        "code": "current 6-digit code"
+      },
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/setup/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Step 1 of turning two-factor on: returns the secret and the otpauth:// link to show as a QR code.",
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/auth/devices/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Devices that skip the two-factor code. GET lists them, DELETE forgets all of them.",
+      "errors": [
+        401,
+        400
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/devices/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Devices that skip the two-factor code. GET lists them, DELETE forgets all of them.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/auth/devices/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Forget one remembered device.",
+      "errors": [
+        401,
+        400,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/email/change/",
+      "auth": "authenticated",
+      "throttle_scope": "email",
+      "summary": "Start changing the account email. A link goes to the new address, and nothing changes until it is opened.",
+      "body": {
+        "new_email": "string",
+        "password": "string",
+        "code": "optional; required when 2FA is on"
+      },
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/email/change/confirm/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Finish the change with the token from the link sent to the new address.",
+      "body": {
+        "token": "string"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Sign in with email and password. 403 until the email is verified. Two-factor users get a challenge for /login/2fa/ unless a remembered device_token is sent.",
+      "body": {
+        "username": "email (case-insensitive)",
+        "password": "string",
+        "device_token": "optional remembered-device token"
+      },
+      "errors": [
+        400,
+        429,
+        403
+      ],
+      "notes": "403 code email_not_verified until verified. 2FA users get {two_factor_required:true, challenge} instead of tokens. Success returns {access, refresh}."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login/2fa/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Second step of signing in: the challenge from the first step plus a code. Send remember_device to skip the code on this device for a while.",
+      "body": {
+        "challenge": "string from login",
+        "code": "6-digit or backup code",
+        "remember_device": "bool",
+        "device_name": "optional string"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "The signed-in user's profile: timezone, theme, and whether email, password and two-factor are set up.",
+      "errors": [
+        401
+      ],
+      "response": "Me"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/auth/me/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "The signed-in user's profile: timezone, theme, and whether email, password and two-factor are set up.",
+      "body": {
+        "timezone": "IANA zone",
+        "theme": "string"
+      },
+      "errors": [
+        401,
+        400
+      ],
+      "response": "Me"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "The signed-in user's profile: timezone, theme, and whether email, password and two-factor are set up.",
+      "body": {
+        "timezone": "IANA zone",
+        "theme": "string"
+      },
+      "errors": [
+        401,
+        400
+      ],
+      "response": "Me"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password-reset/",
+      "auth": "public",
+      "throttle_scope": "email",
+      "summary": "Email a one-hour reset link. The answer is the same whether or not the address has an account.",
+      "body": {
+        "email": "string"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password-reset/confirm/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Set a new password using the uid and token from the emailed link. The link works once, verifies the email, and forgets remembered devices.",
+      "body": {
+        "uid": "string",
+        "token": "string",
+        "new_password": "string"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password/change/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Change the password while signed in. Needs the current one. Returns fresh tokens, because the old ones stop working.",
+      "body": {
+        "current_password": "string",
+        "new_password": "string"
+      },
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/refresh/",
+      "auth": "public",
+      "throttle_scope": null,
+      "summary": "Trade a refresh token for a new access token. Tokens issued before the last password change are refused.",
+      "body": {
+        "refresh": "string"
+      },
+      "errors": [
+        400
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Create an account and email a verification link. No tokens: the user signs in after verifying.",
+      "body": {
+        "email": "string",
+        "password": "string",
+        "timezone": "IANA zone"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/social/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Which providers are connected, whether the account has a password, and which providers the server is set up for.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/social/{provider}/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Sign in or sign up with a Google or Apple ID token obtained by the frontend. Send the same nonce you gave the provider.",
+      "body": {
+        "id_token": "string (max 8192)",
+        "nonce": "same nonce given to the provider",
+        "timezone": "optional; used only if this creates the account",
+        "device_token": "optional remembered-device token"
+      },
+      "errors": [
+        400,
+        429,
+        404
+      ],
+      "path_params": [
+        "provider"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/social/{provider}/link/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Connect Google or Apple to the signed-in account. Needs the password (and a code if two-factor is on).",
+      "body": {
+        "id_token": "string",
+        "nonce": "string",
+        "password": "string",
+        "code": "optional; required when 2FA is on"
+      },
+      "errors": [
+        401,
+        400,
+        429,
+        404
+      ],
+      "path_params": [
+        "provider"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/social/{provider}/unlink/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "Disconnect Google or Apple. Needs the password (and a code if two-factor is on), so a password is always left to sign in with.",
+      "body": {
+        "password": "string",
+        "code": "optional; required when 2FA is on"
+      },
+      "errors": [
+        401,
+        400,
+        429,
+        404
+      ],
+      "path_params": [
+        "provider"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-email/confirm/",
+      "auth": "public",
+      "throttle_scope": "auth",
+      "summary": "Confirm an email address with the token from the emailed link.",
+      "body": {
+        "token": "string"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-email/resend/",
+      "auth": "public",
+      "throttle_scope": "email",
+      "summary": "Send a new verification link. Open to anyone, since an unverified user can't sign in, and it reveals nothing about which addresses exist.",
+      "body": {
+        "email": "string"
+      },
+      "errors": [
+        400,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/data/delete/",
+      "auth": "authenticated",
+      "throttle_scope": "auth",
+      "summary": "",
+      "body": {
+        "password": "string",
+        "scope": "data|account",
+        "confirm": "must be exactly DELETE"
+      },
+      "errors": [
+        401,
+        400,
+        429
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/export/journal/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Download journal entries as CSV, one row per prompt and answer.",
+      "query": {
+        "kind": "optional",
+        "from": "optional YYYY-MM-DD",
+        "to": "optional YYYY-MM-DD"
+      },
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/export/trades/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Download trades as CSV. Takes the same filters as the trade log.",
+      "query": {
+        "filters": "same as GET /api/trades/"
+      },
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/files/screenshot/",
+      "auth": "public",
+      "throttle_scope": null,
+      "summary": "Serve one screenshot or thumbnail from a signed, expiring link. The link is the credential, so no loginheader is needed.",
+      "query": {
+        "(signed query)": "use the url from the Screenshot object as-is"
+      },
+      "errors": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/fx/rate/",
+      "auth": "authenticated",
+      "throttle_scope": "fx",
+      "summary": "The rate for converting 1 `from` into `to` on a day, e.g. ?from=JPY&to=USD&date=2026-10-15.",
+      "query": {
+        "from": "ISO code",
+        "to": "ISO code",
+        "date": "YYYY-MM-DD"
+      },
+      "errors": [
+        401,
+        429
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List goals",
+      "resource": "Goal",
+      "errors": [
+        401
+      ],
+      "response": "list of Goal"
+    },
+    {
+      "method": "POST",
+      "path": "/api/goals/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (Goal)",
+      "resource": "Goal",
+      "body": "fields of Goal (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Goal"
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/progress/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "How each goal that covers a month is going. Defaults to the current month.",
+      "query": {
+        "month": "YYYY-MM (default current)"
+      },
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/goals/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (Goal)",
+      "resource": "Goal",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (Goal)",
+      "resource": "Goal",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Goal",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/goals/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (Goal)",
+      "resource": "Goal",
+      "body": "fields of Goal (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Goal",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/goals/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (Goal)",
+      "resource": "Goal",
+      "body": "fields of Goal (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Goal",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/",
+      "auth": "public",
+      "throttle_scope": null,
+      "summary": "Is the service up? Checks the database and the cache. Public, and used by the host's health check.",
+      "errors": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/import-templates/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List import-templates",
+      "resource": "ImportTemplate",
+      "errors": [
+        401
+      ],
+      "response": "list of ImportTemplate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/import-templates/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (ImportTemplate)",
+      "resource": "ImportTemplate",
+      "body": "fields of ImportTemplate (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "ImportTemplate"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/import-templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (ImportTemplate)",
+      "resource": "ImportTemplate",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/import-templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (ImportTemplate)",
+      "resource": "ImportTemplate",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "ImportTemplate",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/import-templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (ImportTemplate)",
+      "resource": "ImportTemplate",
+      "body": "fields of ImportTemplate (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "ImportTemplate",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/import-templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (ImportTemplate)",
+      "resource": "ImportTemplate",
+      "body": "fields of ImportTemplate (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "ImportTemplate",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/imports/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/imports/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Import the file or pasted text for real, in one transaction.",
+      "body": {
+        "file": "file (max 10 MB) OR text: pasted rows - exactly one of the two",
+        "account": "account id (required)",
+        "template": "import template id|null",
+        "mapping": "JSON object",
+        "timezone": "string",
+        "date_format": "string",
+        "decimal_separator": "string",
+        "has_header": "optional bool"
+      },
+      "errors": [
+        401,
+        400
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/imports/preview/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Parse the file or pasted text and report what would happen. Saves nothing.",
+      "body": "same body as POST /api/imports/; saves nothing",
+      "errors": [
+        401,
+        400
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/imports/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "",
+      "errors": [
+        401,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/imports/{pk}/undo/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Remove every trade that came from this import.",
+      "errors": [
+        401,
+        400,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/entries/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List journal/entries",
+      "resource": "JournalEntry",
+      "query": {
+        "kind": "optional filter",
+        "from": "optional filter",
+        "to": "optional filter"
+      },
+      "notes": "POST upserts by kind+date.",
+      "errors": [
+        401
+      ],
+      "response": "list of JournalEntry"
+    },
+    {
+      "method": "POST",
+      "path": "/api/journal/entries/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create the entry for this kind and day, or update it if it already exists.",
+      "resource": "JournalEntry",
+      "body": "fields of JournalEntry (read-only fields ignored)",
+      "notes": "POST upserts by kind+date.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalEntry"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/journal/entries/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (JournalEntry)",
+      "resource": "JournalEntry",
+      "notes": "POST upserts by kind+date.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/entries/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (JournalEntry)",
+      "resource": "JournalEntry",
+      "notes": "POST upserts by kind+date.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalEntry",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/journal/entries/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (JournalEntry)",
+      "resource": "JournalEntry",
+      "body": "fields of JournalEntry (read-only fields ignored)",
+      "notes": "POST upserts by kind+date.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalEntry",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/journal/entries/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (JournalEntry)",
+      "resource": "JournalEntry",
+      "body": "fields of JournalEntry (read-only fields ignored)",
+      "notes": "POST upserts by kind+date.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalEntry",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/streak/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Days journaled in a row. Weekly reviews don't count toward it.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/templates/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List journal/templates",
+      "resource": "JournalTemplate",
+      "query": {
+        "kind": "optional filter"
+      },
+      "errors": [
+        401
+      ],
+      "response": "list of JournalTemplate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/journal/templates/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (JournalTemplate)",
+      "resource": "JournalTemplate",
+      "body": "fields of JournalTemplate (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalTemplate"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/journal/templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (JournalTemplate)",
+      "resource": "JournalTemplate",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/journal/templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (JournalTemplate)",
+      "resource": "JournalTemplate",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalTemplate",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/journal/templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (JournalTemplate)",
+      "resource": "JournalTemplate",
+      "body": "fields of JournalTemplate (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalTemplate",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/journal/templates/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (JournalTemplate)",
+      "resource": "JournalTemplate",
+      "body": "fields of JournalTemplate (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "JournalTemplate",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbook-rules/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List playbook-rules",
+      "resource": "PlaybookRule",
+      "errors": [
+        401
+      ],
+      "response": "list of PlaybookRule"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playbook-rules/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (PlaybookRule)",
+      "resource": "PlaybookRule",
+      "body": "fields of PlaybookRule (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "PlaybookRule"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playbook-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (PlaybookRule)",
+      "resource": "PlaybookRule",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbook-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (PlaybookRule)",
+      "resource": "PlaybookRule",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "PlaybookRule",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/playbook-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (PlaybookRule)",
+      "resource": "PlaybookRule",
+      "body": "fields of PlaybookRule (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "PlaybookRule",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/playbook-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (PlaybookRule)",
+      "resource": "PlaybookRule",
+      "body": "fields of PlaybookRule (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "PlaybookRule",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbooks/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List playbooks",
+      "resource": "Playbook",
+      "errors": [
+        401
+      ],
+      "response": "list of Playbook"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playbooks/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (Playbook)",
+      "resource": "Playbook",
+      "body": "fields of Playbook (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Playbook"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playbooks/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (Playbook)",
+      "resource": "Playbook",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/playbooks/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (Playbook)",
+      "resource": "Playbook",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Playbook",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/playbooks/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (Playbook)",
+      "resource": "Playbook",
+      "body": "fields of Playbook (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Playbook",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/playbooks/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (Playbook)",
+      "resource": "Playbook",
+      "body": "fields of Playbook (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Playbook",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "All 15 core reports: where to fetch each one, its columns, and the filters it accepts.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/calendar/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/equity/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/playbooks/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Adherence, followed-vs-broken P&L per playbook, and what each rule costs when broken.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/summary/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/tags/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Rank tags by the money lost on trades that carry them (default: mistake tags).",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/{slug}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "The nine reports built in this module. The older six keep their own endpoints.",
+      "errors": [
+        401,
+        404
+      ],
+      "path_params": [
+        "slug"
+      ],
+      "notes": "Slug is one of the nine analytics reports; GET /api/reports/ lists slugs, columns and filters."
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/{slug}/csv/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Any of the 15 reports as a CSV download, with the same query parameters.",
+      "errors": [
+        401,
+        404
+      ],
+      "path_params": [
+        "slug"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/risk-rules/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List risk-rules",
+      "resource": "RiskRule",
+      "notes": "One rule per account+kind; account and kind cannot change.",
+      "errors": [
+        401
+      ],
+      "response": "list of RiskRule"
+    },
+    {
+      "method": "POST",
+      "path": "/api/risk-rules/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (RiskRule)",
+      "resource": "RiskRule",
+      "body": "fields of RiskRule (read-only fields ignored)",
+      "notes": "One rule per account+kind; account and kind cannot change.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "RiskRule"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/risk-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (RiskRule)",
+      "resource": "RiskRule",
+      "notes": "One rule per account+kind; account and kind cannot change.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/risk-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (RiskRule)",
+      "resource": "RiskRule",
+      "notes": "One rule per account+kind; account and kind cannot change.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "RiskRule",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/risk-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (RiskRule)",
+      "resource": "RiskRule",
+      "body": "fields of RiskRule (read-only fields ignored)",
+      "notes": "One rule per account+kind; account and kind cannot change.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "RiskRule",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/risk-rules/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (RiskRule)",
+      "resource": "RiskRule",
+      "body": "fields of RiskRule (read-only fields ignored)",
+      "notes": "One rule per account+kind; account and kind cannot change.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "RiskRule",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/risk/status/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Where the account stands against its limits, for today or for ?date=YYYY-MM-DD.",
+      "query": {
+        "date": "YYYY-MM-DD (default today)"
+      },
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/screenshots/usage/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "How much of the user's screenshot storage is used, and the upload limits.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/screenshots/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Edit a screenshot's caption and order, or delete it.",
+      "errors": [
+        401,
+        400,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/screenshots/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Edit a screenshot's caption and order, or delete it.",
+      "body": {
+        "caption": "string",
+        "position": "int"
+      },
+      "errors": [
+        401,
+        400,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/specs/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Global defaults plus the user's own per-account overrides.",
+      "errors": [
+        401
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/specs/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Global defaults plus the user's own per-account overrides.",
+      "errors": [
+        401,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tags/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List tags",
+      "resource": "Tag",
+      "errors": [
+        401
+      ],
+      "response": "list of Tag"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tags/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (Tag)",
+      "resource": "Tag",
+      "body": "fields of Tag (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Tag"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tags/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (Tag)",
+      "resource": "Tag",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tags/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (Tag)",
+      "resource": "Tag",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Tag",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tags/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (Tag)",
+      "resource": "Tag",
+      "body": "fields of Tag (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Tag",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tags/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (Tag)",
+      "resource": "Tag",
+      "body": "fields of Tag (read-only fields ignored)",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Tag",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/trades/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List trades",
+      "resource": "Trade",
+      "query": {
+        "account": "optional filter",
+        "symbol": "optional filter",
+        "side": "optional filter",
+        "outcome": "optional filter",
+        "tag": "optional filter",
+        "from": "optional filter",
+        "to": "optional filter",
+        "import_batch": "optional filter"
+      },
+      "notes": "Filters: account id; symbol (uppercased); side; outcome win|loss|breakeven; tag = comma-separated ids (any match); from/to = YYYY-MM-DD local dates, inclusive; import_batch id.",
+      "errors": [
+        401
+      ],
+      "response": "list of Trade"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trades/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Create (Trade)",
+      "resource": "Trade",
+      "body": "fields of Trade (read-only fields ignored)",
+      "notes": "Filters: account id; symbol (uppercased); side; outcome win|loss|breakeven; tag = comma-separated ids (any match); from/to = YYYY-MM-DD local dates, inclusive; import_batch id.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Trade"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trades/bulk/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Add or remove tags on many trades at once, or delete them.",
+      "body": {
+        "ids": "[trade id]",
+        "action": "add_tags|remove_tags|delete",
+        "tag_ids": "[tag id] (for tag actions)"
+      },
+      "errors": [
+        401,
+        400
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/trades/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Delete (Trade)",
+      "resource": "Trade",
+      "notes": "Filters: account id; symbol (uppercased); side; outcome win|loss|breakeven; tag = comma-separated ids (any match); from/to = YYYY-MM-DD local dates, inclusive; import_batch id.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "204 no content",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/trades/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Get one (Trade)",
+      "resource": "Trade",
+      "notes": "Filters: account id; symbol (uppercased); side; outcome win|loss|breakeven; tag = comma-separated ids (any match); from/to = YYYY-MM-DD local dates, inclusive; import_batch id.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Trade",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/trades/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Partial update (Trade)",
+      "resource": "Trade",
+      "body": "fields of Trade (read-only fields ignored)",
+      "notes": "Filters: account id; symbol (uppercased); side; outcome win|loss|breakeven; tag = comma-separated ids (any match); from/to = YYYY-MM-DD local dates, inclusive; import_batch id.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Trade",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/trades/{pk}/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "Replace (Trade)",
+      "resource": "Trade",
+      "body": "fields of Trade (read-only fields ignored)",
+      "notes": "Filters: account id; symbol (uppercased); side; outcome win|loss|breakeven; tag = comma-separated ids (any match); from/to = YYYY-MM-DD local dates, inclusive; import_batch id.",
+      "errors": [
+        400,
+        401,
+        404
+      ],
+      "response": "Trade",
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/trades/{pk}/screenshots/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List a trade's screenshots with fresh signed links, or upload one (multipart: file, caption).",
+      "errors": [
+        401,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/trades/{pk}/screenshots/",
+      "auth": "authenticated",
+      "throttle_scope": null,
+      "summary": "List a trade's screenshots with fresh signed links, or upload one (multipart: file, caption).",
+      "body": "multipart: file (image, max 2 MB), caption",
+      "errors": [
+        401,
+        400,
+        404
+      ],
+      "path_params": [
+        "pk"
+      ]
+    }
+  ]
+}
