@@ -41,4 +41,4 @@ All routes are under `/api/`. List them with
 `python manage.py export_endpoints`. Auth is JWT (`Authorization: Bearer <access>`).
 Errors are JSON with a machine-readable `code`. Money is always a 2-decimal string.
 
-endpoint.json ists every method, path, auth level and summary, and it’s generated from the code, so it can’t drift. It doesn’t have request bodies or filter names, if needed that is where api-endpoints.json in the docs folder comes in but since it’s hand-assembled, treat the real code as the authority if the two ever disagree.
+endpoint.json lists every method, path, auth level and summary, and it’s generated from the code, so it can’t drift. It doesn’t have request bodies or filter names, if needed that is where api-endpoints.json in the docs folder comes in but since it’s hand-assembled, treat the real code as the authority if the two ever disagree.
